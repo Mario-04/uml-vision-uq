@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from pathlib import Path
 from PIL import Image
@@ -42,7 +43,6 @@ cifar100_transform_test = transforms.Compose([
     transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
 ])
 
-
 class CIFARDataset(Dataset):
     """Dataset backed by pre-saved .npy arrays; applies transforms via PIL."""
 
@@ -59,21 +59,6 @@ class CIFARDataset(Dataset):
         if self.transform:
             img = self.transform(img)
         return img, self.y[idx]
-
-
-def _load_cifar(data_dir: str, train_tf, test_tf, batch_size: int = 128):
-    p = Path(data_dir)
-    x_train = np.load(p / "x_train.npy")
-    y_train = np.load(p / "y_train.npy")
-    x_test  = np.load(p / "x_test.npy")
-    y_test  = np.load(p / "y_test.npy")
-
-    train_ds = CIFARDataset(x_train, y_train, transform=train_tf)
-    test_ds  = CIFARDataset(x_test,  y_test,  transform=test_tf)
-
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=2, pin_memory=True)
-    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
-    return train_loader, test_loader
 
 
 def _download_cifar(dataset_cls, data_dir: str):
@@ -101,10 +86,35 @@ def download_all():
     download_cifar10()
     download_cifar100()
 
-def load_cifar10(batch_size: int = 128):
-    """Returns (train_loader, test_loader) for CIFAR-10."""
-    return _load_cifar(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, batch_size)
+def _load_cifar(data_dir: str, train_tf, test_tf, batch_size: int = 128, seed: int = 42, pin_memory: bool = False) -> tuple[DataLoader, DataLoader, DataLoader]:
+    p = Path(data_dir)
 
-def load_cifar100(batch_size: int = 128):
-    """Returns (train_loader, test_loader) for CIFAR-100 (near-OOD set)."""
-    return _load_cifar(CIFAR_100_DIR, cifar100_transform_train, cifar100_transform_test, batch_size)
+    if not p.exists():
+        _download_cifar(CIFAR10 if "cifar10" in data_dir else CIFAR100, data_dir)
+
+    x_train = np.load(p / "x_train.npy")
+    y_train = np.load(p / "y_train.npy")
+    x_test  = np.load(p / "x_test.npy")
+    y_test  = np.load(p / "y_test.npy")
+
+    rng = np.random.default_rng(seed)
+    indices = rng.permutation(len(x_train))
+    val_size = len(x_train) // 10
+    val_idx, train_idx = indices[:val_size], indices[val_size:]
+
+    train_ds = CIFARDataset(x_train[train_idx], y_train[train_idx], transform=train_tf)
+    val_ds   = CIFARDataset(x_train[val_idx],   y_train[val_idx],   transform=test_tf)
+    test_ds  = CIFARDataset(x_test,             y_test,             transform=test_tf)
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=2, pin_memory=pin_memory, persistent_workers=True)
+    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=pin_memory, persistent_workers=True)
+    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=pin_memory, persistent_workers=True)
+    return train_loader, val_loader, test_loader
+
+def load_cifar10(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
+    """Returns (train_loader, val_loader, test_loader) for CIFAR-10."""
+    return _load_cifar(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
+
+def load_cifar100(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
+    """Returns (train_loader, val_loader, test_loader) for CIFAR-100 (near-OOD set)."""
+    return _load_cifar(CIFAR_100_DIR, cifar100_transform_train, cifar100_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
