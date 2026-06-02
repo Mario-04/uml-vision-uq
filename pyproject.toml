@@ -9,3 +9,12 @@ dependencies = [
     "torchvision>=0.15.0",
     "numpy>=1.24.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
