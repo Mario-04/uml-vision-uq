@@ -1,9 +1,13 @@
 import torch
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+from pathlib import Path
 from .data import load_cifar10
 from .models import baseline_CNN
 
+FIGURES_DIR = "reports/figures"
+Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 
 def set_seed(seed: int):
     random.seed(seed)
@@ -66,7 +70,30 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
         model.epoch_end(epoch, result)
         history.append(result)
     return history
-        
+
+def plot_accuracies(history):
+    accuracies = [x['val_acc'] for x in history]
+    plt.figure()
+    plt.plot(accuracies, '-x')
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.title('Accuracy vs. No. of epochs')
+    plt.savefig("reports/figures/accuracy_plot.png")
+    plt.close()
+
+def plot_losses(history):
+    train_losses = [x.get('train_loss', 0) for x in history]
+    val_losses = [x['val_loss'] for x in history]
+    plt.figure()
+    plt.plot(train_losses, '-bx')
+    plt.plot(val_losses, '-rx')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.legend(['Training', 'Validation'])
+    plt.title('Loss vs. No. of epochs')
+    plt.savefig("reports/figures/training_plot.png")
+    plt.close()
+
 def train_baseline_cifar10CNN(seed: int = 42):
     set_seed(seed)
     device = get_default_device()
@@ -77,19 +104,12 @@ def train_baseline_cifar10CNN(seed: int = 42):
     val_loader   = DeviceDataLoader(val_loader,   device)
     test_loader  = DeviceDataLoader(test_loader,  device)
 
-    # model = to_device(baseline_CNN(), device)
     model = baseline_CNN().to(device)
-
-    print("Initial accuracy:")
-    print(evaluate(model, val_loader))
 
     num_epochs = 10
     opt_func = torch.optim.Adam
     lr = 0.001
     history = fit(num_epochs, lr, model, train_loader, val_loader, opt_func)
 
-
-
-
-    
-
+    plot_accuracies(history)
+    plot_losses(history)
