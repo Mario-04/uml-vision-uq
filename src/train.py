@@ -4,7 +4,7 @@ import random
 import matplotlib.pyplot as plt
 from pathlib import Path
 from .data import load_cifar10
-from .models import baseline_CNN
+from .models import baseline_CNN, MCDropout_CNN
 
 FIGURES_DIR = "reports/figures"
 Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
@@ -54,6 +54,7 @@ def evaluate(model, val_loader):
 def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
     history = []
     optimizer = opt_func(model.parameters(), lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     for epoch in range(epochs):
         # training phase
         model.train()
@@ -64,6 +65,7 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+        scheduler.step()
         # validation phase
         result = evaluate(model, val_loader)
         result['train_loss'] = torch.stack(train_losses).mean().item()
@@ -93,6 +95,28 @@ def plot_losses(history):
     plt.title('Loss vs. No. of epochs')
     plt.savefig("reports/figures/training_plot.png")
     plt.close()
+
+def train_mc_dropout_cifar10CNN(seed: int = 42):
+    set_seed(seed)
+    device = get_default_device()
+    print(f"Using device: {device}")
+
+    train_loader, val_loader, test_loader = load_cifar10(batch_size=256, seed=seed)
+    train_loader = DeviceDataLoader(train_loader, device)
+    val_loader   = DeviceDataLoader(val_loader,   device)
+    test_loader  = DeviceDataLoader(test_loader,  device)
+
+    model = MCDropout_CNN().to(device)
+
+    num_epochs = 20
+    opt_func = torch.optim.Adam
+    lr = 0.001
+    history = fit(num_epochs, lr, model, train_loader, val_loader, opt_func)
+
+    plot_accuracies(history)
+    plot_losses(history)
+    return model
+
 
 def train_baseline_cifar10CNN(seed: int = 42):
     set_seed(seed)

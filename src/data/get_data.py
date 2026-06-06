@@ -106,15 +106,18 @@ def _load_cifar(data_dir: str, train_tf, test_tf, batch_size: int = 128, seed: i
     val_ds   = CIFARDataset(x_train[val_idx],   y_train[val_idx],   transform=test_tf)
     test_ds  = CIFARDataset(x_test,             y_test,             transform=test_tf)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=2, pin_memory=pin_memory, persistent_workers=True)
-    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=pin_memory, persistent_workers=True)
-    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=pin_memory, persistent_workers=True)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=8, pin_memory=pin_memory, persistent_workers=True)
+    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=pin_memory, persistent_workers=True)
+    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=pin_memory, persistent_workers=True)
     return train_loader, val_loader, test_loader
+
+def _pin_memory() -> bool:
+    return torch.cuda.is_available()
 
 def load_cifar10(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Returns (train_loader, val_loader, test_loader) for CIFAR-10."""
-    return _load_cifar(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
+    return _load_cifar(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, batch_size, seed, pin_memory=_pin_memory())
 
 def load_cifar100(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Returns (train_loader, val_loader, test_loader) for CIFAR-100 (near-OOD set)."""
-    return _load_cifar(CIFAR_100_DIR, cifar100_transform_train, cifar100_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
+    return _load_cifar(CIFAR_100_DIR, cifar100_transform_train, cifar100_transform_test, batch_size, seed, pin_memory=_pin_memory())
