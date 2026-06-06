@@ -15,3 +15,6 @@ uv.lock
 
 # Data files
 datasets/
+
+# Training artifacts (weights are large; commit config/history manually if needed)
+artifacts/
