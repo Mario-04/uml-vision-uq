@@ -1,1 +1,1 @@
-from src.models.cnn import baseline_CNN
+from src.models.cnn import CNN
