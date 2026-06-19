@@ -36,9 +36,11 @@ def accuracy(outputs, labels):
     return torch.tensor(torch.sum(preds == labels).item() / len(preds))
 
 
-class baseline_CNN(ImageClassifier):
-    def __init__(self):
+class CNN(ImageClassifier):
+    def __init__(self, dropout_p: float):
         super().__init__()
+        self.dropout_p = dropout_p
+
         self.network = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
@@ -47,6 +49,7 @@ class baseline_CNN(ImageClassifier):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (64, 16, 16)
+            self._dropout2DLayer(),
 
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
@@ -55,6 +58,7 @@ class baseline_CNN(ImageClassifier):
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (128, 8, 8)
+            self._dropout2DLayer(),
 
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
@@ -63,14 +67,29 @@ class baseline_CNN(ImageClassifier):
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (256, 4, 4)
+            self._dropout2DLayer(),
 
             nn.Flatten(),
             nn.Linear(256 * 4 * 4, 1024),
             nn.ReLU(),
+            self._dropoutLayer(),
             nn.Linear(1024, 512),
             nn.ReLU(),
+            self._dropoutLayer(),
             nn.Linear(512, 10)
         )
+
+    def _dropout2DLayer(self):
+        if self.dropout_p > 0.0:
+            return nn.Dropout2d(p=self.dropout_p)
+        else:
+            return nn.Identity()
+    
+    def _dropoutLayer(self):
+        if self.dropout_p > 0.0:
+            return nn.Dropout(p=self.dropout_p)
+        else:
+            return nn.Identity()
 
     def forward(self, x):
         return self.network(x)
