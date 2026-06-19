@@ -12,7 +12,7 @@ A CNN is trained on CIFAR-10 and compared against a deterministic baseline. At t
 
 ## Method
 
-- **Model**: CNN with dropout layers (Keras, Categorical Cross-Entropy loss)
+- **Model**: CNN with dropout layers (Torch, Categorical Cross-Entropy loss)
 - **Baseline**: Standard CNN with deterministic softmax prediction
 - **MC Dropout**: Multiple stochastic forward passes at test time; mean for classification, variance/entropy for uncertainty
 
@@ -27,9 +27,7 @@ A CNN is trained on CIFAR-10 and compared against a deterministic baseline. At t
 ## Datasets
 
 - **CIFAR-10**: 10 classes, 6000 images per class — used for training, validation, testing, and calibration
-- **CIFAR-100**: 100 classes, 600 images per class — used as OOD data for near-OOD detection
-
-CIFAR-100 classes are mutually exclusive with CIFAR-10 classes, making it suitable as a near-OOD set.
+- **SVHN**: 10 digit classes from real-world house number images — used as an out-of-distribution (OOD) dataset for evaluating robustness under significant domain shift
 
 ## Project Structure
 
@@ -38,9 +36,29 @@ src/
   data/            # Data loading and preprocessing
   models/          # CNN and MC Dropout model definitions
   visualisations/  # Reliability plots and result figures
+  train.py         # File for training
+  artifacts.py     # File for saving models
+  evaluate.py      # File for evaluation
 datasets/          # Raw dataset storage
+artifacts/         # Raw model artifacts
 main.py
 ```
+
+## Running the Project
+
+- ```python main.py --download_data --train_cifar10CNN``` to run and train the base CNN.
+
+- ```python main.py --download_data --train_cifar10MCDropoutCNN``` to run and train the MC-Dropout CNN.
+
+- ```python main.py --evaluate --run_dir dir``` to evaluate a model.
+
+Additional flags:
+- ```--seed int``` to specify seed, otherwise defaults to 42.
+
+- ```--dropout_p float``` to specify what probability to use for dropout.
+
+- ```--run_dir str``` to specify the directory path to a model.
+
 
 ## References
 
