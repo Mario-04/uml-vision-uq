@@ -46,14 +46,18 @@ main.py
 
 ## Running the Project
 
-```python main.py --download_data --train_cifar10CNN``` to run and train the base CNN.
-```python main.py --download_data --train_cifar10MCDropoutCNN``` to run and train the MC-Dropout CNN.
-```python main.py --evaluate --run_dir dir``` to evaluate a model.
+- ```python main.py --download_data --train_cifar10CNN``` to run and train the base CNN.
+
+- ```python main.py --download_data --train_cifar10MCDropoutCNN``` to run and train the MC-Dropout CNN.
+
+- ```python main.py --evaluate --run_dir dir``` to evaluate a model.
 
 Additional flags:
-```--seed int``` to specify seed, otherwise defaults to 42.
-```--dropout_p float``` to specify what probability to use for dropout.
-```--run_dir str``` to specify the directory path to a model.
+- ```--seed int``` to specify seed, otherwise defaults to 42.
+
+- ```--dropout_p float``` to specify what probability to use for dropout.
+
+- ```--run_dir str``` to specify the directory path to a model.
 
 
 ## References
