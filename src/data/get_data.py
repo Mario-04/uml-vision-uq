@@ -129,4 +129,4 @@ def load_cifar10(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, Dat
 
 def load_svhn(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Returns (train_loader, val_loader, test_loader) for SVHN."""
-    return _load_trainers(SVHN_DIR, svhn_transform_train, svhn_transform_test, 128, 42, pin_memory=torch.cuda.is_available())
+    return _load_trainers(SVHN_DIR, svhn_transform_train, svhn_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
