@@ -96,7 +96,7 @@ def plot_losses(history, save_path="reports/figures/loss_plot.png"):
     plt.savefig(save_path)
     plt.close()
 
-def train_mc_dropout_cifar10CNN(seed: int = 42):
+def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42):
     set_seed(seed)
     device = get_default_device()
     print(f"Using device: {device}")
@@ -107,7 +107,7 @@ def train_mc_dropout_cifar10CNN(seed: int = 42):
     val_loader   = DeviceDataLoader(val_loader,   device)
     test_loader  = DeviceDataLoader(test_loader,  device)
 
-    model = CNN(0.4).to(device)
+    model = CNN(dropout_p).to(device)
 
     num_epochs = 20
     opt_func = torch.optim.Adam
@@ -121,7 +121,9 @@ def train_mc_dropout_cifar10CNN(seed: int = 42):
 
     config = {
         "model_class":  "MCDropout_CNN",
-        "model_kwargs": {},
+        "model_kwargs": {
+            "dropout_p": dropout_p
+        },
         "num_epochs":   num_epochs,
         "lr":           lr,
         "optimizer":    opt_func.__name__,
@@ -147,7 +149,7 @@ def train_baseline_cifar10CNN(seed: int = 42):
     val_loader   = DeviceDataLoader(val_loader,   device)
     test_loader  = DeviceDataLoader(test_loader,  device)
 
-    model = CNN().to(device)
+    model = CNN(0.0).to(device)
 
     num_epochs = 10
     opt_func = torch.optim.Adam

@@ -1,1 +1,1 @@
-from src.data.get_data import load_cifar10, load_cifar100, download_all
+from src.data.get_data import load_cifar10, load_svhn, download_all

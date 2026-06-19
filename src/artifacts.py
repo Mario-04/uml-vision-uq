@@ -7,11 +7,10 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from src.models.cnn import baseline_CNN, MCDropout_CNN
+from src.models.cnn import CNN
 
-MODEL_REGISTRY: dict[str, type] = {
-    "baseline_CNN":  baseline_CNN,
-    "MCDropout_CNN": MCDropout_CNN,
+MODEL_REGISTRY = {
+    "CNN": CNN,
 }
 
 ARTIFACTS_ROOT = Path("artifacts")
