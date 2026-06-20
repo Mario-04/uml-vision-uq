@@ -98,11 +98,11 @@ def download_all():
     download_cifar10()
     download_svhn()
 
-def _load_trainers(data_dir: str, train_tf, test_tf, batch_size: int = 128, seed: int = 42, pin_memory: bool = False) -> tuple[DataLoader, DataLoader, DataLoader]:
+def _load_trainers(data_dir: str, train_tf, test_tf, download, batch_size: int = 128, seed: int = 42, pin_memory: bool = False) -> tuple[DataLoader, DataLoader, DataLoader]:
     p = Path(data_dir)
 
     if not p.exists():
-        download_cifar10()
+        download()
 
     x_train = np.load(p / "x_train.npy")
     y_train = np.load(p / "y_train.npy")
@@ -125,8 +125,8 @@ def _load_trainers(data_dir: str, train_tf, test_tf, batch_size: int = 128, seed
 
 def load_cifar10(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Returns (train_loader, val_loader, test_loader) for CIFAR-10."""
-    return _load_trainers(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
+    return _load_trainers(CIFAR_10_DIR, cifar10_transform_train, cifar10_transform_test, download_cifar10, batch_size, seed, pin_memory=torch.cuda.is_available())
 
 def load_svhn(batch_size: int = 128, seed: int = 42) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Returns (train_loader, val_loader, test_loader) for SVHN."""
-    return _load_trainers(SVHN_DIR, svhn_transform_train, svhn_transform_test, batch_size, seed, pin_memory=torch.cuda.is_available())
+    return _load_trainers(SVHN_DIR, svhn_transform_train, svhn_transform_test, download_svhn, batch_size, seed, pin_memory=torch.cuda.is_available())
