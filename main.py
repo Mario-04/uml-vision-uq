@@ -1,4 +1,6 @@
 import argparse
+from pathlib import Path
+
 import torch
 from src.data.get_data import download_all, load_cifar10
 from src.train import get_default_device
@@ -59,10 +61,14 @@ def main():
 
         device = get_default_device()
         model.to(device)
-        
-        results = evaluate_full(model, test_loader, device)
+
+        reliability_path = Path(args.run_dir) / "reliability.png"
+        results = evaluate_full(
+            model, test_loader, device, reliability_path=reliability_path
+        )
 
         print(results)
+        print(f"Reliability diagram saved to {reliability_path}")
 
 
 if __name__ == "__main__":
