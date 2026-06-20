@@ -45,29 +45,29 @@ class CNN(ImageClassifier):
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
+            # self._dropout2DLayer(),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (64, 16, 16)
-            self._dropout2DLayer(),
 
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
+            # self._dropout2DLayer(),
             nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (128, 8, 8)
-            self._dropout2DLayer(),
 
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
+            # self._dropout2DLayer(),
             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2), # output: (256, 4, 4)
-            self._dropout2DLayer(),
 
             nn.Flatten(),
             nn.Linear(256 * 4 * 4, 1024),

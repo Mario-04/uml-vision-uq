@@ -23,7 +23,7 @@ def parse_args():
                         action="store_true",
                         help="Evaluate a trained model on test set")
 
-    parser.add_argument("--dropout_p", type=int, default=0.2,
+    parser.add_argument("--dropout_p", type=float, default=0.2,
                         help="P for dropout layers in MC-Dropout CNN")
 
     parser.add_argument("--seed", type=int, default=42,
@@ -31,6 +31,9 @@ def parse_args():
     
     parser.add_argument("--run_dir", type=str, default=None,
                         help="Directory of model to be evaluated")
+    
+    parser.add_argument("--epochs", type=int, default=10,
+                        help="Number of epochs to train for (if training)")
 
     return parser.parse_args()
 
@@ -41,11 +44,11 @@ def main():
 
     if args.train_cifar10CNN:
         from src.train import train_baseline_cifar10CNN
-        train_baseline_cifar10CNN(seed=args.seed)
+        train_baseline_cifar10CNN(seed=args.seed, epochs=args.epochs)
 
     if args.train_cifar10MCDropoutCNN:
         from src.train import train_mc_dropout_cifar10CNN
-        train_mc_dropout_cifar10CNN(dropout_p=args.dropout_p, seed=args.seed)
+        train_mc_dropout_cifar10CNN(dropout_p=args.dropout_p, seed=args.seed, epochs=args.epochs)
 
     if args.evaluate:
         if args.run_dir is None:

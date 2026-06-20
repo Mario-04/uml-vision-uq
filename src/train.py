@@ -15,7 +15,7 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-def get_default_device():
+def get_default_device() -> torch.device:
     """Pick GPU or MPS if available; else CPU."""
     if torch.cuda.is_available():
         return torch.device("cuda")
@@ -73,7 +73,7 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
         history.append(result)
     return history
 
-def plot_accuracies(history, save_path="reports/figures/accuracy_plot.png"):
+def plot_accuracies(history, save_path: str | Path ="reports/figures/accuracy_plot.png"):
     accuracies = [x['val_acc'] for x in history]
     plt.figure()
     plt.plot(accuracies, '-x')
@@ -83,7 +83,7 @@ def plot_accuracies(history, save_path="reports/figures/accuracy_plot.png"):
     plt.savefig(save_path)
     plt.close()
 
-def plot_losses(history, save_path="reports/figures/loss_plot.png"):
+def plot_losses(history, save_path: str | Path ="reports/figures/loss_plot.png"):
     train_losses = [x.get('train_loss', 0) for x in history]
     val_losses = [x['val_loss'] for x in history]
     plt.figure()
@@ -96,12 +96,12 @@ def plot_losses(history, save_path="reports/figures/loss_plot.png"):
     plt.savefig(save_path)
     plt.close()
 
-def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42):
+def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42, epochs: int = 20):
     set_seed(seed)
     device = get_default_device()
     print(f"Using device: {device}")
 
-    batch_size = 256
+    batch_size = 64
     train_loader, val_loader, test_loader = load_cifar10(batch_size=batch_size, seed=seed)
     train_loader = DeviceDataLoader(train_loader, device)
     val_loader   = DeviceDataLoader(val_loader,   device)
@@ -109,12 +109,11 @@ def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42):
 
     model = CNN(dropout_p).to(device)
 
-    num_epochs = 20
     opt_func = torch.optim.Adam
     lr = 0.001
 
     run_dir = make_run_dir("MCDropout_CNN")
-    history = fit(num_epochs, lr, model, train_loader, val_loader, opt_func)
+    history = fit(epochs, lr, model, train_loader, val_loader, opt_func)
 
     plot_accuracies(history, save_path=run_dir / "accuracy_plot.png")
     plot_losses(history,     save_path=run_dir / "loss_plot.png")
@@ -124,7 +123,7 @@ def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42):
         "model_kwargs": {
             "dropout_p": dropout_p
         },
-        "num_epochs":   num_epochs,
+        "num_epochs":   epochs,
         "lr":           lr,
         "optimizer":    opt_func.__name__,
         "scheduler":    "CosineAnnealingLR",
@@ -138,7 +137,7 @@ def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42):
     return model
 
 
-def train_baseline_cifar10CNN(seed: int = 42):
+def train_baseline_cifar10CNN(seed: int = 42, epochs: int = 10):
     set_seed(seed)
     device = get_default_device()
     print(f"Using device: {device}")
@@ -151,12 +150,11 @@ def train_baseline_cifar10CNN(seed: int = 42):
 
     model = CNN(0.0).to(device)
 
-    num_epochs = 10
     opt_func = torch.optim.Adam
     lr = 0.001
 
     run_dir = make_run_dir("baseline_CNN")
-    history = fit(num_epochs, lr, model, train_loader, val_loader, opt_func)
+    history = fit(epochs, lr, model, train_loader, val_loader, opt_func)
 
     plot_accuracies(history, save_path=run_dir / "accuracy_plot.png")
     plot_losses(history,     save_path=run_dir / "loss_plot.png")
@@ -164,7 +162,7 @@ def train_baseline_cifar10CNN(seed: int = 42):
     config = {
         "model_class":  "baseline_CNN",
         "model_kwargs": {},
-        "num_epochs":   num_epochs,
+        "num_epochs":   epochs,
         "lr":           lr,
         "optimizer":    opt_func.__name__,
         "scheduler":    "CosineAnnealingLR",
