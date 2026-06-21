@@ -71,3 +71,4 @@ Additional flags:
 1. Will Cukierski. CIFAR-10 - Object Recognition in Images. https://kaggle.com/competitions/ cifar-10. Kaggle. 2013.
 2. Alex Krizhevsky. Object Classification Experiments. Chapter 3 of technical report: Learning Multiple
 Layers of Features from Tiny Images. University of Toronto, Apr. 2009, pp. 32–35. URL: https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf.
+3. Shadab Hussain. CIFAR-10 CNN using PyTorch. Kaggle. URL: https://www.kaggle.com/code/shadabhussain/cifar-10-cnn-using-pytorch. The CNN structure and training regime is adapted from this notebook.
