@@ -96,72 +96,42 @@ def plot_losses(history, save_path: str | Path ="reports/figures/loss_plot.png")
     plt.savefig(save_path)
     plt.close()
 
-def train_mc_dropout_cifar10CNN(dropout_p: float = 0.2, seed: int = 42, epochs: int = 20):
+def train_cifar10CNN(
+    dropout_p: float = 0.0,
+    seed: int = 42,
+    epochs: int = 10,
+    batch_size: int = 128,
+):
+    """Train a CNN on CIFAR-10.
+
+    dropout_p == 0.0 -> deterministic baseline CNN.
+    dropout_p  > 0.0 -> MC dropout CNN (dropout layers used as the stochastic
+                        component for MC dropout inference at test time).
+    """
     set_seed(seed)
     device = get_default_device()
     print(f"Using device: {device}")
 
-    batch_size = 64
     train_loader, val_loader, test_loader = load_cifar10(batch_size=batch_size, seed=seed)
     train_loader = DeviceDataLoader(train_loader, device)
     val_loader   = DeviceDataLoader(val_loader,   device)
     test_loader  = DeviceDataLoader(test_loader,  device)
 
-    model = CNN(dropout_p).to(device)
+    model = CNN(dropout_p=dropout_p).to(device)
 
     opt_func = torch.optim.Adam
     lr = 0.001
 
-    run_dir = make_run_dir("MCDropout_CNN")
+    run_name = "baseline_CNN" if dropout_p == 0.0 else "MCDropout_CNN"
+    run_dir = make_run_dir(run_name)
     history = fit(epochs, lr, model, train_loader, val_loader, opt_func)
 
     plot_accuracies(history, save_path=run_dir / "accuracy_plot.png")
     plot_losses(history,     save_path=run_dir / "loss_plot.png")
 
     config = {
-        "model_class":  "MCDropout_CNN",
-        "model_kwargs": {
-            "dropout_p": dropout_p
-        },
-        "num_epochs":   epochs,
-        "lr":           lr,
-        "optimizer":    opt_func.__name__,
-        "scheduler":    "CosineAnnealingLR",
-        "batch_size":   batch_size,
-        "seed":         seed,
-        "device":       str(device),
-        "timestamp":    datetime.now().isoformat(),
-    }
-    save_run(run_dir, model, history, config)
-    print(f"Run saved to: {run_dir}")
-    return model
-
-
-def train_baseline_cifar10CNN(seed: int = 42, epochs: int = 10):
-    set_seed(seed)
-    device = get_default_device()
-    print(f"Using device: {device}")
-
-    batch_size = 128
-    train_loader, val_loader, test_loader = load_cifar10(batch_size=batch_size, seed=seed)
-    train_loader = DeviceDataLoader(train_loader, device)
-    val_loader   = DeviceDataLoader(val_loader,   device)
-    test_loader  = DeviceDataLoader(test_loader,  device)
-
-    model = CNN(0.0).to(device)
-
-    opt_func = torch.optim.Adam
-    lr = 0.001
-
-    run_dir = make_run_dir("baseline_CNN")
-    history = fit(epochs, lr, model, train_loader, val_loader, opt_func)
-
-    plot_accuracies(history, save_path=run_dir / "accuracy_plot.png")
-    plot_losses(history,     save_path=run_dir / "loss_plot.png")
-
-    config = {
-        "model_class":  "baseline_CNN",
-        "model_kwargs": {},
+        "model_class":  "CNN",
+        "model_kwargs": {"dropout_p": dropout_p},
         "num_epochs":   epochs,
         "lr":           lr,
         "optimizer":    opt_func.__name__,

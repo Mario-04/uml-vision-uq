@@ -13,20 +13,18 @@ def parse_args():
                         action="store_true",
                         help="Download CIFAR-10 and SVHN datasets")
 
-    parser.add_argument("--train_cifar10CNN",
+    parser.add_argument("--train",
                         action="store_true",
-                        help="Train the baseline CNN on CIFAR-10")
+                        help="Train a CNN on CIFAR-10 (dropout_p=0 -> deterministic "
+                             "baseline; dropout_p>0 -> MC-dropout model)")
 
-    parser.add_argument("--train_cifar10MCDropoutCNN",
-                        action="store_true",
-                        help="Train the MC-Dropout CNN on CIFAR-10")
-    
     parser.add_argument("--evaluate",
                         action="store_true",
                         help="Evaluate a trained model on test set")
 
-    parser.add_argument("--dropout_p", type=float, default=0.2,
-                        help="P for dropout layers in MC-Dropout CNN")
+    parser.add_argument("--dropout_p", type=float, default=0.0,
+                        help="Dropout probability. 0 = deterministic baseline; "
+                             ">0 = MC-dropout model")
 
     parser.add_argument("--seed", type=int, default=42,
                         help="Global random seed for reproducibility")
@@ -44,13 +42,9 @@ def main():
     if args.download_data:
         download_all()
 
-    if args.train_cifar10CNN:
-        from src.train import train_baseline_cifar10CNN
-        train_baseline_cifar10CNN(seed=args.seed, epochs=args.epochs)
-
-    if args.train_cifar10MCDropoutCNN:
-        from src.train import train_mc_dropout_cifar10CNN
-        train_mc_dropout_cifar10CNN(dropout_p=args.dropout_p, seed=args.seed, epochs=args.epochs)
+    if args.train:
+        from src.train import train_cifar10CNN
+        train_cifar10CNN(dropout_p=args.dropout_p, seed=args.seed, epochs=args.epochs)
 
     if args.evaluate:
         if args.run_dir is None:
