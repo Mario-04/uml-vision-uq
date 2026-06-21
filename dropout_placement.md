@@ -54,3 +54,18 @@ Accuracy results:
 
 ##### Reliability plots from [text](artifacts/MCDropout_CNN_20260620_223614)
 
+# Deterministic and stochastic model predictions. 
+
+For the baseline model, we have determanistic predictions -- a softmax over the classes -- and for the evaluation model we employ stochastic predictions through MC dropout -- multiple forward passes with the dropout layers active, results are returned as mean and variance over the classes. 
+
+Commit ID: b5e2537b6fdcdf5858586e6bf504acd0d10a8993
+```bash
+uv run python main.py --train --dropout_p 0.1 --epochs 20
+```
+
+Traing a model with p=0.1 dropout for 20 epochs heeds a final accuracy of 88.93\%. 
+![Training accuracy plot](reports/artifacts/CNN_p0.1_20260621_173730/accuracy_plot.png)
+
+The Expected Calibration Error (ECE) for the baseline model (no MC-dropout at inference) is 0.0376 meaning the model is slightly overconfident and for MC-dropout active at 30 samples gives an ECE of 0.0319. An improvement of 0.0057 ECE points, corresponding to a relative reduction of approximately 15.2% compared to the baseline. This indicates that enabling MC-dropout at inference improves calibration slightly, making the model’s predicted confidence better aligned with its actual accuracy.
+
+

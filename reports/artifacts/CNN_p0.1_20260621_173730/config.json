@@ -1,0 +1,15 @@
+{
+  "model_class": "CNN",
+  "model_kwargs": {
+    "dropout_p": 0.1
+  },
+  "num_epochs": 20,
+  "lr": 0.001,
+  "optimizer": "Adam",
+  "scheduler": "CosineAnnealingLR",
+  "batch_size": 128,
+  "seed": 42,
+  "device": "mps",
+  "timestamp": "2026-06-21T17:40:20.997495",
+  "git_commit": "b5e2537"
+}

@@ -62,7 +62,7 @@ def main():
 
         if args.mc_samples > 1:
             from src.evaluate import evaluate_mc_dropout
-            reliability_path = Path(args.run_dir) / "reliability_mc.png"
+            reliability_path = Path(args.run_dir) / f"reliability_mc_{args.mc_samples}.png"
             results = evaluate_mc_dropout(
                 model, test_loader, device,
                 n_samples=args.mc_samples,
