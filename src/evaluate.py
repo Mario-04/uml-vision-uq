@@ -108,6 +108,10 @@ def evaluate_full(
     n_bins: int = 15,
     reliability_path=None,
 ):
+    """Deterministic evaluation: a single forward pass with dropout disabled."""
+    # Force deterministic inference even if MC dropout was enabled earlier.
+    if hasattr(model, "enable_mc_dropout"):
+        model.enable_mc_dropout(False)
     model.eval()
 
     total_loss = 0
@@ -150,4 +154,102 @@ def evaluate_full(
         "accuracy": total_correct / total_samples,
         "brier": total_brier / total_samples,
         "ece": curve["ece"],
+    }
+
+
+@torch.no_grad()
+def evaluate_mc_dropout(
+    model,
+    dataloader,
+    device: str | torch.device = "cuda",
+    n_samples: int = 30,
+    n_bins: int = 15,
+    reliability_path=None,
+):
+    """MC dropout evaluation: `n_samples` (T) stochastic forward passes per input.
+
+    Dropout layers are kept active (via ``model.enable_mc_dropout``) while
+    BatchNorm uses its running statistics. The per-pass softmax probabilities are
+    averaged into a predictive distribution; accuracy, loss, Brier and ECE are
+    computed on that mean. Similar to ``evaluate_full``.
+
+    Two uncertainty scores are also returned per sample (useful for OOD
+    detection): the predictive entropy of the mean distribution and the summed
+    across-pass class variance.
+    """
+    if not hasattr(model, "enable_mc_dropout"):
+        raise TypeError(
+            "Model does not support MC dropout (missing enable_mc_dropout)."
+        )
+
+    model.enable_mc_dropout(True)
+    model.eval()  # BatchNorm in eval mode; dropout stays active via the switch
+
+    total_loss = 0.0
+    total_brier = 0.0
+    total_correct = 0
+    total_samples = 0
+
+    all_conf = []
+    all_correct = []
+    all_entropy = []
+    all_variance = []
+
+    for images, labels in dataloader:
+        images, labels = images.to(device), labels.to(device)
+
+        # (T, B, C) softmax probabilities across the stochastic passes.
+        probs_t = torch.stack(
+            [torch.softmax(model(images), dim=1) for _ in range(n_samples)],
+            dim=0,
+        )
+        mean_probs = probs_t.mean(dim=0)  # (B, C) predictive distribution
+
+        conf, preds = mean_probs.max(dim=1)
+        correct = preds == labels
+
+        log_mean = torch.log(mean_probs.clamp_min(1e-12))
+        loss = F.nll_loss(log_mean, labels)  # cross-entropy on the mean probs
+
+        one_hot = torch.zeros_like(mean_probs)
+        one_hot.scatter_(1, labels.unsqueeze(1), 1)
+        brier = torch.mean(torch.sum((mean_probs - one_hot) ** 2, dim=1))
+
+        # Uncertainty scores (per sample).
+        entropy = -torch.sum(mean_probs * log_mean, dim=1)  # predictive entropy
+        variance = probs_t.var(dim=0).sum(dim=1)            # summed class variance
+
+        batch_size = labels.size(0)
+        total_loss += loss.item() * batch_size
+        total_brier += brier.item() * batch_size
+        total_correct += correct.sum().item()
+        total_samples += batch_size
+
+        all_conf.append(conf.cpu())
+        all_correct.append(correct.cpu())
+        all_entropy.append(entropy.cpu())
+        all_variance.append(variance.cpu())
+
+    curve = reliability_curve(torch.cat(all_conf), torch.cat(all_correct), n_bins=n_bins)
+
+    if reliability_path is not None:
+        plot_reliability_diagram(
+            curve, save_path=reliability_path,
+            title=f"MC dropout (T={n_samples})",
+        )
+
+    entropy = torch.cat(all_entropy)
+    variance = torch.cat(all_variance)
+
+    return {
+        "loss": total_loss / total_samples,
+        "accuracy": total_correct / total_samples,
+        "brier": total_brier / total_samples,
+        "ece": curve["ece"],
+        "n_samples": n_samples,
+        "mean_entropy": entropy.mean().item(),
+        "mean_variance": variance.mean().item(),
+        # Per-sample arrays for downstream OOD detection (CIFAR-10 vs SVHN).
+        "entropy": entropy,
+        "variance": variance,
     }

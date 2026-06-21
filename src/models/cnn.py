@@ -40,6 +40,10 @@ class CNN(ImageClassifier):
     def __init__(self, dropout_p: float=0.0):
         super().__init__()
         self.dropout_p = dropout_p
+        # Switch for stochastic (MC dropout) inference. When True, calling
+        # .eval() keeps the dropout layers active while BatchNorm still uses
+        # its running statistics. See enable_mc_dropout() / train().
+        self.mc_dropout = False
 
         self.network = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
@@ -90,6 +94,28 @@ class CNN(ImageClassifier):
             return nn.Dropout(p=self.dropout_p)
         else:
             return nn.Identity()
+
+    def enable_mc_dropout(self, enable: bool = True):
+        """Flip the stochastic-inference switch.
+
+        When enabled, a subsequent call to .eval() leaves the dropout layers
+        in training mode (so each forward pass is stochastic) while every other
+        layer -- crucially BatchNorm -- still runs in eval mode using its
+        running statistics.
+        """
+        self.mc_dropout = enable
+        # Re-apply the mode so the switch takes effect immediately.
+        return self.train(self.training)
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        # In eval mode with MC dropout enabled, re-activate only the dropout
+        # layers; BatchNorm (and everything else) stays in eval mode.
+        if not mode and self.mc_dropout:
+            for m in self.modules():
+                if isinstance(m, (nn.Dropout, nn.Dropout2d)):
+                    m.train()
+        return self
 
     def forward(self, x):
         return self.network(x)

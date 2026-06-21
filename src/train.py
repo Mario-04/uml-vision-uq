@@ -122,8 +122,9 @@ def train_cifar10CNN(
     opt_func = torch.optim.Adam
     lr = 0.001
 
-    run_name = "baseline_CNN" if dropout_p == 0.0 else "MCDropout_CNN"
-    run_dir = make_run_dir(run_name)
+    # The same trained model can be evaluated deterministically or with MC
+    # dropout, so the run is named only by its training dropout rate.
+    run_dir = make_run_dir(f"CNN_p{dropout_p}")
     history = fit(epochs, lr, model, train_loader, val_loader, opt_func)
 
     plot_accuracies(history, save_path=run_dir / "accuracy_plot.png")
