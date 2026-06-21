@@ -1,5 +1,12 @@
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve
+
+from .data import load_cifar10, load_svhn
+
 
 def brier_score_multiclass(logits, labels):
     probs = F.softmax(logits, dim=1)
@@ -121,6 +128,7 @@ def evaluate_full(
 
     all_conf = []
     all_correct = []
+    all_entropy = []
 
     for images, labels in dataloader:
         images, labels = images.to(device), labels.to(device)
@@ -134,6 +142,9 @@ def evaluate_full(
         conf, preds = probs.max(dim=1)
         correct = preds == labels
 
+        # Predictive entropy of the single softmax (per-sample OOD score). Shannons formula.
+        entropy = -torch.sum(probs * torch.log(probs.clamp_min(1e-12)), dim=1)
+
         batch_size = labels.size(0)
 
         total_loss += loss.item() * batch_size
@@ -143,6 +154,7 @@ def evaluate_full(
 
         all_conf.append(conf.cpu())
         all_correct.append(correct.cpu())
+        all_entropy.append(entropy.cpu())
 
     curve = reliability_curve(torch.cat(all_conf), torch.cat(all_correct), n_bins=n_bins)
 
@@ -154,6 +166,8 @@ def evaluate_full(
         "accuracy": total_correct / total_samples,
         "brier": total_brier / total_samples,
         "ece": curve["ece"],
+        # Per-sample uncertainty for OOD detection (CIFAR-10 vs SVHN).
+        "entropy": torch.cat(all_entropy),
     }
 
 
@@ -253,3 +267,114 @@ def evaluate_mc_dropout(
         "entropy": entropy,
         "variance": variance,
     }
+
+
+def _to_numpy(x):
+    return x.detach().cpu().numpy() if torch.is_tensor(x) else np.asarray(x)
+
+
+def ood_detection(id_scores, ood_scores):
+    """Score far-OOD detection from per-sample uncertainty scores.
+
+    OOD is the positive class and ``scores`` are uncertainties (higher => more
+    likely OOD), so a good detector assigns higher scores to ``ood_scores`` than
+    to ``id_scores``.
+
+    Args:
+        id_scores:  (N_id,) uncertainty on in-distribution samples (CIFAR-10).
+        ood_scores: (N_ood,) uncertainty on out-of-distribution samples (SVHN).
+
+    Returns a dict with the ROC curve arrays (``fpr``, ``tpr``) for plotting and
+    the scalars ``auroc``, ``aupr`` and ``fpr95`` (FPR at 95% TPR).
+    """
+    id_scores = _to_numpy(id_scores)
+    ood_scores = _to_numpy(ood_scores)
+
+    scores = np.concatenate([ood_scores, id_scores])
+    labels = np.concatenate([np.ones(len(ood_scores)), np.zeros(len(id_scores))])
+
+    auroc = roc_auc_score(labels, scores)
+    aupr = average_precision_score(labels, scores)
+    fpr, tpr, _ = roc_curve(labels, scores)
+    # FPR at the first threshold where TPR reaches 95%.
+    fpr95 = float(fpr[np.searchsorted(tpr, 0.95)])
+
+    return {"fpr": fpr, "tpr": tpr, "auroc": auroc, "aupr": aupr, "fpr95": fpr95}
+
+
+def plot_ood_roc(curves, save_path=None, title: str = "OOD ROC (CIFAR-10 vs SVHN)"):
+    """Overlay ROC curves for one or more OOD detectors.
+
+    Args:
+        curves: mapping ``{model_name: result}`` where each ``result`` is the
+            output of ``ood_detection``. Add a key (e.g. an ensemble) to draw an
+            extra curve -- no other change needed.
+
+    If ``save_path`` is given the figure is written there and closed. Returns the
+    matplotlib Figure.
+    """
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.plot([0, 1], [0, 1], "--", color="gray", label="Chance")
+    for name, r in curves.items():
+        ax.plot(r["fpr"], r["tpr"], label=f"{name} (AUROC={r['auroc']:.3f})")
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("False positive rate")
+    ax.set_ylabel("True positive rate")
+    ax.set_title(title)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=150)
+        plt.close(fig)
+    else:
+        plt.show()
+
+    return fig
+
+
+def evaluate_ood(
+    model,
+    device,
+    run_dir,
+    n_samples: int = 30,
+    batch_size: int = 256,
+    seed: int = 42,
+):
+    """Far-OOD detection: CIFAR-10 (ID) vs SVHN (OOD).
+
+    Scores the same trained model two ways - deterministic (dropout off,
+    baseline) and MC-dropout (dropout on, ``n_samples`` passes) - using
+    predictive entropy as the per-sample uncertainty. Prints AUROC/AUPR/FPR@95%
+    per model and saves an overlaid ROC curve to ``run_dir``. Returns the
+    ``{name: ood_detection result}`` dict.
+    """
+    id_loader = load_cifar10(batch_size=batch_size, seed=seed)[2]
+    ood_loader = load_svhn(batch_size=batch_size, seed=seed)[2]
+
+    # Baseline: deterministic single-pass predictive entropy.
+    id_base = evaluate_full(model, id_loader, device)["entropy"]
+    ood_base = evaluate_full(model, ood_loader, device)["entropy"]
+
+    # MC-dropout: predictive entropy of the mean over T stochastic passes.
+    id_mc = evaluate_mc_dropout(model, id_loader, device, n_samples=n_samples)["entropy"]
+    ood_mc = evaluate_mc_dropout(model, ood_loader, device, n_samples=n_samples)["entropy"]
+
+    curves = {
+        "Baseline (entropy)": ood_detection(id_base, ood_base),
+        f"MC-dropout T={n_samples} (entropy)": ood_detection(id_mc, ood_mc),
+    }
+
+    print("Far-OOD detection (CIFAR-10 ID vs SVHN OOD):")
+    print(f"{'model':<32}{'AUROC':>8}{'AUPR':>8}{'FPR@95':>8}")
+    for name, r in curves.items():
+        print(f"{name:<32}{r['auroc']:>8.3f}{r['aupr']:>8.3f}{r['fpr95']:>8.3f}")
+
+    roc_path = Path(run_dir) / "ood_roc.png"
+    plot_ood_roc(curves, save_path=roc_path)
+    print(f"ROC curve saved to {roc_path}")
+    return curves

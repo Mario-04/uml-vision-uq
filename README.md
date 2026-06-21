@@ -1,4 +1,4 @@
-# MC Dropout Uncertainty Estimation on CIFAR-10/100
+# MC Dropout Uncertainty Estimation on CIFAR-10 (far-OOD: SVHN)
 
 **Marinus van den Ende (s5460484), David van Wuijkhuijse (s5592968), Adelina Mazilu (s5484669)**
 
@@ -6,7 +6,7 @@ Uncertainty in ML - Assignment 3
 
 ## Overview
 
-This project investigates whether Monte Carlo (MC) Dropout improves uncertainty estimation and calibration in CNN-based image classification, and whether its uncertainty estimates are useful for near out-of-distribution (near-OOD) detection.
+This project investigates whether Monte Carlo (MC) Dropout improves uncertainty estimation and calibration in CNN-based image classification, and whether its uncertainty estimates are useful for far out-of-distribution (far-OOD) detection. We use SVHN as a pure far-OOD test set against CIFAR-10 (we do not distinguish near-OOD / semantic-shift cases).
 
 A CNN is trained on CIFAR-10 and compared against a deterministic baseline. At test time, MC Dropout keeps dropout active and performs multiple stochastic forward passes per image. The mean prediction is used for classification; variance and entropy serve as uncertainty measures.
 
@@ -22,12 +22,12 @@ A CNN is trained on CIFAR-10 and compared against a deterministic baseline. At t
 |------|---------|
 | Classification | Accuracy, Brier score |
 | Calibration | Expected Calibration Error (ECE), reliability plots |
-| Near-OOD detection | AUROC, AUPR, FPR@95% |
+| Far-OOD detection | AUROC, AUPR, FPR@95% |
 
 ## Datasets
 
-- **CIFAR-10**: 10 classes, 6000 images per class — used for training, validation, testing, and calibration
-- **SVHN**: 10 digit classes from real-world house number images — used as an out-of-distribution (OOD) dataset for evaluating robustness under significant domain shift
+- **CIFAR-10**: 10 classes, 6000 images per class — used for training, validation, testing, and calibration (the in-distribution set)
+- **SVHN**: real-world house-number digit images — used as the far-OOD test set for OOD detection (CIFAR-10 = in-distribution, SVHN = out-of-distribution)
 
 ## Project Structure
 
@@ -46,16 +46,22 @@ main.py
 
 ## Running the Project
 
-- ```python main.py --download_data --train_cifar10CNN``` to run and train the base CNN.
+- ```python main.py --download_data``` to download CIFAR-10 and SVHN.
 
-- ```python main.py --download_data --train_cifar10MCDropoutCNN``` to run and train the MC-Dropout CNN.
+- ```python main.py --train --dropout_p 0.1 --epochs 20``` to train a CNN. `--dropout_p 0.0` gives the deterministic baseline; `--dropout_p > 0.0` enables MC-dropout at inference. The run is saved to `artifacts/`.
 
-- ```python main.py --evaluate --run_dir dir``` to evaluate a model.
+- ```python main.py --evaluate --run_dir <dir>``` to evaluate a model on the CIFAR-10 test set (accuracy, Brier, ECE, reliability diagram). Add `--mc_samples 30` to evaluate with MC-dropout instead of a deterministic single pass.
+
+- ```python main.py --evaluate --ood --run_dir <dir> --mc_samples 30``` to run **far-OOD detection** (CIFAR-10 in-distribution vs SVHN out-of-distribution). The same trained model is scored deterministically (baseline) and with MC-dropout; AUROC / AUPR / FPR@95% are printed and an overlaid ROC curve is saved to `<dir>/ood_roc.png`.
 
 Additional flags:
 - ```--seed int``` to specify seed, otherwise defaults to 42.
 
 - ```--dropout_p float``` to specify what probability to use for dropout.
+
+- ```--epochs int``` number of training epochs.
+
+- ```--mc_samples int``` number of stochastic forward passes (T) at evaluation; `1` = deterministic, `>1` = MC-dropout.
 
 - ```--run_dir str``` to specify the directory path to a model.
 

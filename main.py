@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 from src.data.get_data import download_all, load_cifar10
 from src.train import get_default_device
-from src.evaluate import evaluate_full
+from src.evaluate import evaluate_full, evaluate_ood
 from src.artifacts import load_run
 
 def parse_args():
@@ -22,6 +22,12 @@ def parse_args():
                         action="store_true",
                         help="Evaluate a trained model on test set")
 
+    parser.add_argument("--ood",
+                        action="store_true",
+                        help="Far-OOD detection: score CIFAR-10 (in-distribution) "
+                             "vs SVHN (out-of-distribution) and compare the "
+                             "deterministic baseline against MC-dropout")
+
     parser.add_argument("--dropout_p", type=float, default=0.0,
                         help="Dropout probability used during training ")
 
@@ -29,6 +35,9 @@ def parse_args():
                         help="Number of stochastic forward passes (T) at "
                              "evaluation. 1 = deterministic single-pass; "
                              ">1 = MC-dropout evaluation")
+
+    parser.add_argument("--batch_size", type=int, default=128,
+                        help="Batch size for evaluation data loaders")
 
     parser.add_argument("--seed", type=int, default=42,
                         help="Global random seed for reproducibility")
@@ -40,6 +49,7 @@ def parse_args():
                         help="Number of epochs to train for (if training)")
 
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
@@ -55,10 +65,22 @@ def main():
             raise ValueError("Please ensure --run_dir exists and is a valid model.")
 
         model, history, config = load_run(args.run_dir)
-        _, _, test_loader = load_cifar10(batch_size=256, seed=args.seed)
 
         device = get_default_device()
         model.to(device)
+
+        if args.ood:
+            # mc_samples is the deterministic default (1); use T=30 for MC dropout.
+            n_samples = args.mc_samples if args.mc_samples > 1 else 30
+            evaluate_ood(
+                model, device, args.run_dir,
+                n_samples=n_samples,
+                batch_size=args.batch_size,
+                seed=args.seed,
+            )
+            return
+
+        _, _, test_loader = load_cifar10(batch_size=args.batch_size, seed=args.seed)
 
         if args.mc_samples > 1:
             from src.evaluate import evaluate_mc_dropout
